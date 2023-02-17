@@ -1,0 +1,14 @@
+body {
+    background-color: #000011;
+}
+
+img {
+    width: 75px;
+    height: 75px;
+    transition: all 0.5s ease;
+}
+
+img:hover {
+    transform: scale(1.5);
+    transition: all 0.5s ease-in-out;
+  }
