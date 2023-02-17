@@ -14,17 +14,18 @@ const cronjob = require('./cronjob');
 const React = require('react');
 const ReactDOM = require('react-dom');
 const express = require('express');
-const {util} = require('webpack');
-const {exec} = require('child_process');
+const { util } = require('webpack');
+const { exec } = require('child_process');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const log4js = require('log4js');
 log4js.configure({
-    appenders: {trello: {type: 'file', filename: './logs.log'}},
-    categories: {default: {appenders: ['trello'], level: 'debug'}}
+    appenders: { trello: { type: 'file', filename: './logs.log' } },
+    categories: { default: { appenders: ['trello'], level: 'debug' } }
 });
 const logger = log4js.getLogger('trello');
 const shortid = require('shortid');
+
 
 
 //API TOGGL2TRELLO
@@ -33,12 +34,9 @@ const shortid = require('shortid');
 const app = express();
 const port = 3001;
 
-app.use(cors(), bodyParser.json(), express.urlencoded({extended: true}));
+app.use(cors(), bodyParser.json());
 app.get('/users', (req, res) => {
-    fs.readFile('./constants.json', (err, data) => {
-        if (err) throw err;
-        res.json(JSON.parse(data));
-    });
+    res.json(constants)
 })
 
 
@@ -51,13 +49,13 @@ app.post('/users', (req, res) => {
         TOGGL_UID: "",
         TRELLO_HISTORY_LIST_ID: "",
     }
-    let toggl = new TogglClient({apiToken: newUser.API_KEY_TOGGL});
+    let toggl = new TogglClient({ apiToken: newUser.API_KEY_TOGGL });
     toggl.getUserData(toggl, (err, userData) => {
         if (err) {
             if (err.code === 403) {
-                res.status(403).json({error: "Invalid Toggl API key."});
+                res.status(403).json({ error: "Invalid Toggl API key." });
             } else {
-                res.status(500).json({error: "Unknown error."});
+                res.status(500).json({ error: "Unknown error." });
             }
         } else {
             newUser.TOGGL_UID = userData.id.toString();
@@ -66,13 +64,14 @@ app.post('/users', (req, res) => {
                     lists.forEach(list => {
                         if (list.name === newUser.name) {
                             newUser.TRELLO_LIST_ID = list.id.toString();
-                        } else if (list.name === `📆Archives de ${newUser.name}`) {
+                        }
+                        else if (list.name === `📆Archives de ${newUser.name}`) {
                             trello_utils.deleteListOnBoard(list.id.toString()).then(() => {
                                 logger.debug(`Suppression de l'ancienne liste d'archives de ${newUser.name} avec succès.`)
                             });
                         }
                     })
-                    if (!newUser.TRELLO_LIST_ID) return res.status(404).json({error: "Liste Trello non trouvée, veuillez la créer."});
+                    if (!newUser.TRELLO_LIST_ID) return res.status(404).json({ error: "Liste Trello non trouvée, veuillez la créer." });
                     // Create a new list for the history of the user
                     trello_utils.createListOnBoard(datas.TRELLO_BOARD_ID, `📆Archives de ${newUser.name}`).then(list => {
                         newUser.TRELLO_HISTORY_LIST_ID = list.id.toString();
@@ -89,6 +88,10 @@ app.post('/users', (req, res) => {
         }
     });
 });
+
+
+
+
 
 
 app.delete('/users/:id', (req, res) => {
@@ -192,7 +195,7 @@ app.delete('/api-reset/:id', async (req, res) => {
     fs.writeFileSync('./existing-cards.txt', '');
 
     // Réinitialiser les données de constants.json
-    constants = {users: []};
+    constants = { users: [] };
     fs.writeFileSync('./constants.json', JSON.stringify(constants, null, 2));
 
     // Réinitialiser les données de data.json
@@ -228,40 +231,6 @@ app.delete('/logs', (req, res) => {
     res.sendStatus(200);
 });
 
-app.get('/download-datas', (req, res) => {
-    fs.readFile('./constants.json', 'utf8', (err, constants) => {
-        if (err) throw err;
-        fs.readFile('./client/data.json', 'utf8', (err, data) => {
-            if (err) throw err;
-
-            const combinedDatas = {
-                ...JSON.parse(constants),
-                ...JSON.parse(data)
-            };
-            res.json(combinedDatas);
-        });
-    });
-});
-
-app.put('/import-datas', (req, res) => {
-
-    let trelloData = {
-        TRELLO_API_KEY: req.body.Trello[0].TRELLO_API_KEY,
-        TRELLO_API_TOKEN: req.body.Trello[0].TRELLO_API_TOKEN,
-        TRELLO_BOARD_ID: req.body.Trello[0].TRELLO_BOARD_ID,
-        TRELLO_BUSY_LABEL_ID: req.body.Trello[0].TRELLO_BUSY_LABEL_ID,
-    }
-
-    let userData = req.body.users;
-
-    fs.writeFileSync('./client/data.json', JSON.stringify({Trello: [trelloData]}, null, 2));
-    fs.writeFileSync('./constants.json', JSON.stringify({users: userData}, null, 2));
-
-    logger.debug("Importation des données effectuée avec succès !");
-    res.json({Trello: [trelloData], users: userData});
-});
-
-
 exec("npm start --prefix client", (error, stdout, stderr) => {
     if (error) {
         console.log(`error: ${error.message}`);
@@ -275,11 +244,18 @@ exec("npm start --prefix client", (error, stdout, stderr) => {
 });
 
 
-// Faire une boucle qui detecte si le fichier data.json est rempli :
+
+
+
+
+
+
+
+// Faire une boucle qui detecte si le fichier data.json est rempli : 
 
 // Si oui, on lance le cronjob et on sort de la boucle
 
-// Sinon, on attend que le fichier soit rempli
+// Si non, on attend que le fichier soit rempli
 
 let autoRefresh = setInterval(() => {
     fs.readFile('./client/data.json', 'utf8', (err, jsonString) => {
